@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parts Inventory - AInventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #dc2626; --success: #059669; --dark: #1e293b; --gray: #64748b; --border: #e2e8f0; --blue: #3b82f6; --purple: #8b5cf6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Montserrat', sans-serif; background: #f8fafc; min-height: 100vh; }
+        
+        .header { background: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logo { font-size: 1.5rem; font-weight: 800; }
+        .logo .ai { color: var(--primary); }
+        .logo .inv { color: var(--dark); }
+        .logout-btn { background: none; border: none; color: var(--gray); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; cursor: pointer; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+        .section-header { text-align: center; margin-bottom: 2rem; position: relative; }
+        .section-header h1 { font-size: 1.5rem; font-weight: 600; color: var(--dark); }
+        .section-header .divider { width: 60px; height: 3px; background: var(--success); margin: 0.5rem auto 0; border-radius: 2px; }
+
+        /* View Toggles */
+        #order-list-view { display: block; }
+        #order-detail-view { display: none; }
+
+        .upload-zone { border: 2px dashed var(--border); border-radius: 1rem; padding: 1.5rem; text-align: center; background: #fff; transition: 0.3s; margin-bottom: 1.5rem; cursor: pointer; }
+        .upload-zone:hover { border-color: var(--primary); }
+        .upload-zone.do-zone:hover { border-color: var(--blue); }
+        .upload-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .upload-zone h3 { margin-bottom: 0.25rem; font-size: 1rem; }
+        .upload-zone p { color: var(--gray); font-size: 0.75rem; }
+        .upload-zone input { display: none; }
+
+        .scan-btn { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: white; padding: 0.875rem 1.5rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 2rem; }
+        .scan-btn-do { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+
+        .main-card { background: #fff; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 2rem; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .card-header h2 { font-size: 1rem; font-weight: 600; color: var(--dark); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .btn { padding: 0.65rem 1rem; border: none; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #b91c1c; }
+        .btn-dark { background: var(--dark); color: #fff; }
+        .btn-dark:hover { background: #0f172a; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #047857; }
+        .btn-delete { background: #ef4444; color: #fff; }
+        .btn-delete:hover { background: #b91c1c; }
+        
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 0.875rem 0.75rem; text-align: left; font-size: 0.65rem; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        td { padding: 0.875rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; color: var(--dark); white-space: nowrap; vertical-align: middle; }
+        tr:hover { background: #f8fafc; }
+
+        .status { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; }
+        .status.ready { background: #d1fae5; color: #065f46; }
+        .status.pending { background: #fef3c7; color: #92400e; }
+        .status.delivered { background: #dbeafe; color: #1e40af; }
+
+        .action-btn { padding: 0.375rem 0.625rem; border: none; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600; cursor: pointer; }
+        .btn-view { background: var(--dark); color: #fff; }
+        .btn-borrow { background: #3b82f6; color: #fff; }
+        .btn-return { background: var(--success); color: #fff; }
+        .btn-deliver { background: var(--purple); color: #fff; }
+        .btn-deliver:hover { background: #7c3aed; }
+        .btn-deliver:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Inline Editable Inputs */
+        .inline-input { border: 1px solid transparent; background: transparent; padding: 0.4rem; font-size: 0.8125rem; font-family: inherit; width: 100%; border-radius: 0.25rem; transition: 0.2s; color: var(--dark); }
+        .inline-input:hover { border-color: var(--border); background: #fff; cursor: text; }
+        .inline-input:focus { outline: none; border-color: var(--primary); background: #fff; cursor: text; }
+
+        .empty-state { padding: 3rem; text-align: center; color: var(--gray); }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+        .nav-buttons { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-card { background: #fff; padding: 2rem; border-radius: 1rem; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-card h3 { margin-bottom: 1.5rem; font-size: 1.25rem; color: var(--dark); font-weight: 700; text-align: center; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--gray); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .form-group input, .form-group select { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 0.5rem; font-size: 0.875rem; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo"><span class="ai">AI</span><span class="inv">nventory</span></div>
+        <button class="logout-btn" id="logout-btn">Sign Out</button>
+    </header>
+
+    <div class="container">
+        
+        <div id="order-list-view">
+            <div class="nav-buttons">
+                <button class="btn btn-dark" onclick="window.location.href='../index.html'">← Back to Hub</button>
+            </div>
+            
+            <div class="section-header">
+                <h1>Parts Order List</h1>
+                <div class="divider"></div>
+            </div>
+
+            <div class="upload-zone do-zone" id="do-upload-zone">
+                <div class="icon">📄</div>
+                <h3 style="color: var(--blue);">AI Delivery Order (DO) Scanner</h3>
+                <p id="do-upload-text">Click to upload supplier DO. This auto-updates active POs. Surplus goes to Extra Stock.</p>
+                <input type="file" id="do-file-input" accept="image/*">
+            </div>
+            <button class="scan-btn scan-btn-do" id="do-scan-btn">🔍 Scan DO & Auto-Fill Stock</button>
+
+            <div class="main-card">
+                <div class="card-header">
+                    <h2>📋 Purchase Orders</h2>
+                    <button class="btn btn-primary" id="btn-open-add-po">+ Add PO</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>PO Date</th>
+                                <th>PO Number</th>
+                                <th>Customer Name</th>
+                                <th>Order Description</th>
+                                <th>Total Amount (RM)</th>
+                                <th>Due Date</th>
+                                <th>Stock Status</th>
+                                <th>Delivery Status</th>
+                                <th style="width: 200px;">Remark (Click to edit)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="po-table">
+                            <tr><td colspan="11" class="empty-state">Loading Database...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="main-card">
+                <div class="card-header">
+                    <h2>📦 Extra Stock Items (Unallocated)</h2>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Part No.</th>
+                                <th>Available Qty</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stock-table">
+                            <tr><td colspan="4" class="empty-state">Loading Stock...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="order-detail-view">
+            <div class="nav-buttons" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <button class="btn btn-dark" id="btn-back-to-po-list">← Back to PO List</button>
+                <button class="btn btn-success" id="btn-save-po-edits">💾 Save Changes</button>
+            </div>
+
+            <div class="section-header">
+                <h1 id="detail-title">PO Details</h1>
+                <div class="divider"></div>
+            </div>
+
+            <div class="upload-zone" id="upload-zone-area">
+                <div class="icon">📷</div>
+                <h3>AI Purchase Order (PO) Scanner</h3>
+                <p id="upload-text">Click to upload PO image to extract ordered items.</p>
+                <input type="file" id="file-input" accept="image/*">
+            </div>
+            <button class="scan-btn" id="scan-btn">🔍 Scan PO & Extract Ordered Items</button>
+
+            <div class="main-card">
+                <div class="card-header">
+                    <h2>📋 Order Items</h2>
+                    <button class="btn btn-primary" id="btn-open-add-item">+ Add Item</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item No.</th>
+                                <th>Part No.</th>
+                                <th>Description</th>
+                                <th>Qty Ordered</th>
+                                <th>In Stock</th>
+                                <th>Borrowed</th>
+                                <th>Stock Status</th>
+                                <th>Delivery Status</th>
+                                <th style="width: 200px;">Remark (Click to edit)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-table">
+                            <tr><td colspan="10" class="empty-state">Loading Items...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="add-po-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>Add New Purchase Order</h3>
+            <form id="add-po-form">
+                <div class="form-group">
+                    <label>PO Date</label>
+                    <input type="date" id="new-po-date" required>
+                </div>
+                <div class="form-group">
+                    <label>PO Number</label>
+                    <input type="text" id="new-po-number" placeholder="e.g. PO-2026-003" required>
+                </div>
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="new-po-customer" placeholder="Company Name" required>
+                </div>
+                <div class="form-group">
+                    <label>Order Description</label>
+                    <input type="text" id="new-po-desc" placeholder="Brief details of order" required>
+                </div>
+                <div class="form-group">
+                    <label>Total Amount (RM)</label>
+                    <input type="number" id="new-po-amount" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" id="new-po-duedate" required>
+                </div>
+                <div class="form-group">
+                    <label>Remark</label>
+                    <input type="text" id="new-po-remark" placeholder="Optional notes">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-dark" style="flex: 1;" id="btn-cancel-po">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Save PO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-po-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>Edit Purchase Order</h3>
+            <form id="edit-po-form">
+                <input type="hidden" id="edit-po-id">
+                <div class="form-group">
+                    <label>PO Date</label>
+                    <input type="date" id="edit-po-date" required>
+                </div>
+                <div class="form-group">
+                    <label>PO Number</label>
+                    <input type="text" id="edit-po-number" required>
+                </div>
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="edit-po-customer" required>
+                </div>
+                <div class="form-group">
+                    <label>Order Description</label>
+                    <input type="text" id="edit-po-desc" required>
+                </div>
+                <div class="form-group">
+                    <label>Total Amount (RM)</label>
+                    <input type="number" id="edit-po-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" id="edit-po-duedate" required>
+                </div>
+                <div class="form-group">
+                    <label>Remark</label>
+                    <input type="text" id="edit-po-remark">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-dark" style="flex: 1;" onclick="document.getElementById('edit-po-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Update PO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-item-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>Add Order Item</h3>
+            <form id="add-item-form">
+                <div class="form-group">
+                    <label>Part Number</label>
+                    <input type="text" id="add-item-partno" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="add-item-desc" required>
+                </div>
+                <div class="form-group">
+                    <label>Qty Ordered</label>
+                    <input type="number" id="add-item-qty" required>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-dark" style="flex: 1;" onclick="document.getElementById('add-item-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-item-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>Edit Order Item</h3>
+            <form id="edit-item-form">
+                <input type="hidden" id="edit-item-index">
+                <div class="form-group">
+                    <label>Part Number</label>
+                    <input type="text" id="edit-item-partno" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="edit-item-desc" required>
+                </div>
+                <div class="form-group">
+                    <label>Qty Ordered</label>
+                    <input type="number" id="edit-item-qty" required>
+                </div>
+                <div class="form-group">
+                    <label>In Stock (Current Available)</label>
+                    <input type="number" id="edit-item-stock" required>
+                    <small style="color:var(--primary); display:block; margin-top:4px;">Cannot exceed Qty Ordered.</small>
+                </div>
+                <div class="form-group">
+                    <label>Borrowed Out</label>
+                    <input type="number" id="edit-item-borrowed" required>
+                </div>
+                <div class="form-group">
+                    <label>Remark</label>
+                    <input type="text" id="edit-item-remark">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-dark" style="flex: 1;" onclick="document.getElementById('edit-item-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Update Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-stock-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h3>Edit Stock Item</h3>
+            <form id="edit-stock-form">
+                <input type="hidden" id="edit-stock-id">
+                <div class="form-group">
+                    <label>Part Number</label>
+                    <input type="text" id="edit-stock-partno" required>
+                </div>
+                <div class="form-group">
+                    <label>Available Qty</label>
+                    <input type="number" id="edit-stock-qty" required>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-dark" style="flex: 1;" onclick="document.getElementById('edit-stock-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Update Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Supabase Init
+            const supabase = window.supabase.createClient(
+                'https://jwvuagztbedbbqjbnbjs.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3dnVhZ3p0YmVkYmJxamJuYmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NjY4MTksImV4cCI6MjA4OTA0MjgxOX0.XTVO2GoQ0lKshH4615-s19rq3mvTITwaAB6aJSpRbJ8'
+            );
+
+            // Security Check
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                if (!session) { window.location.href = '../index.html'; }
+                else { fetchDatabaseData(); } 
+            });
+
+            const GEMINI_K1 = 'AIzaSy';
+            const GEMINI_K2 = 'D7Y7T';
+            const GEMINI_API_KEY = GEMINI_K1 + GEMINI_K2;
+            const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+            // --- LIVE DATA ARRAYS ---
+            let purchaseOrders = [];
+            let allItems = [];
+            let stockItems = []; 
+            let currentPO = null;
+            let selectedFilePO = null;
+            let selectedFileDO = null;
+
+            history.replaceState({ view: 'list' }, '', window.location.pathname);
+
+            // --- FETCH DATA FROM SUPABASE ---
+            async function fetchDatabaseData() {
+                const { data: pos } = await supabase.from('purchase_orders').select('*').order('created_at', { ascending: false });
+                if (pos) {
+                    purchaseOrders = pos.map(p => ({
+                        id: p.id, poDate: p.po_date, poNumber: p.po_number, 
+                        customerName: p.customer_name, orderDesc: p.order_desc, 
+                        totalAmount: p.total_amount, dueDate: p.due_date, remark: p.remark
+                    }));
+                }
+
+                const { data: items } = await supabase.from('order_items').select('*').order('item_no', { ascending: true });
+                if (items) {
+                    allItems = items.map(i => ({
+                        id: i.id, poNumber: i.po_number, itemNo: i.item_no, 
+                        partNo: i.part_no, description: i.description, 
+                        qtyOrdered: i.qty_ordered, inStock: i.in_stock, 
+                        borrowed: i.borrowed, remark: i.remark, isDelivered: i.is_delivered || false
+                    }));
+                }
+
+                // Fetch new Stock table
+                const { data: stocks } = await supabase.from('stock_items').select('*').order('created_at', { ascending: false });
+                if (stocks) {
+                    stockItems = stocks.map(s => ({
+                        id: s.id, partNo: s.part_no, qty: s.qty
+                    }));
+                }
+                
+                renderPOList();
+                renderStockItems();
+                if (currentPO) renderOrders();
+            }
+
+            // --- AUTO-SAVE INLINE REMARKS ---
+            window.updatePORemark = async function(poNumber, value) {
+                let po = purchaseOrders.find(p => p.poNumber === poNumber);
+                if (po && po.id) {
+                    po.remark = value;
+                    await supabase.from('purchase_orders').update({ remark: value }).eq('id', po.id);
+                }
+            };
+
+            window.updateItemRemark = function(itemIndexInView, value) {
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const actualItem = itemsInThisPO[itemIndexInView];
+                if (actualItem) actualItem.remark = value;
+            };
+
+            // --- RENDER PURCHASE ORDERS ---
+            function renderPOList() {
+                const tbody = document.getElementById('po-table');
+                if (purchaseOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No Purchase Orders found. Click + Add PO to begin.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = purchaseOrders.map((po, index) => {
+                    const poItems = allItems.filter(item => item.poNumber === po.poNumber);
+                    
+                    // Stock Status Logic
+                    let isReady = false;
+                    if (poItems.length > 0) {
+                        isReady = poItems.every(item => item.inStock >= item.qtyOrdered);
+                    }
+                    const stockStatus = isReady && poItems.length > 0 ? 'Ready to Deliver' : 'Pending';
+                    const stockStatusClass = stockStatus === 'Ready to Deliver' ? 'ready' : 'pending';
+                    
+                    // Delivery Status Logic (Percentage)
+                    const totalItems = poItems.length;
+                    const deliveredItemsCount = poItems.filter(item => item.isDelivered).length;
+                    const deliveryPercent = totalItems > 0 ? Math.round((deliveredItemsCount / totalItems) * 100) : 0;
+                    let deliveryStatusClass = 'pending';
+                    if (deliveryPercent === 100) deliveryStatusClass = 'ready';
+                    else if (deliveryPercent > 0) deliveryStatusClass = 'delivered';
+
+                    const formattedAmount = parseFloat(po.totalAmount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    // --- Due Date Color Logic ---
+                    let dueDateColor = "inherit";
+                    if (po.dueDate) {
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        const due = new Date(po.dueDate);
+                        
+                        const diffTime = due - today;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays > 90) {
+                            dueDateColor = "var(--success)"; // Green (> 3 months)
+                        } else if (diffDays > 30 && diffDays <= 90) {
+                            dueDateColor = "#f59e0b"; // Orange (1 to 3 months)
+                        } else {
+                            dueDateColor = "var(--primary)"; // Red (< 1 month)
+                        }
+                    }
+                    
+                    return `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${po.poDate}</td>
+                            <td><strong>${po.poNumber}</strong></td>
+                            <td>${po.customerName}</td>
+                            <td>${po.orderDesc}</td>
+                            <td>${formattedAmount}</td>
+                            <td><strong style="color: ${dueDateColor};">${po.dueDate || '-'}</strong></td>
+                            <td><span class="status ${stockStatusClass}">${stockStatus}</span></td>
+                            <td><span class="status ${deliveryStatusClass}">${deliveryPercent}%</span></td>
+                            <td>
+                                <input type="text" class="inline-input" placeholder="Add remark..." value="${po.remark || ''}" onchange="window.updatePORemark('${po.poNumber}', this.value)">
+                            </td>
+                            <td>
+                                <button class="action-btn btn-view" onclick="window.viewPO('${po.poNumber}')">View Items</button>
+                                <button class="action-btn" style="margin-left:4px; background:var(--dark); color:#fff;" onclick="window.editPO('${po.poNumber}')">Edit</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // --- RENDER EXTRA STOCK ITEMS ---
+            function renderStockItems() {
+                const tbody = document.getElementById('stock-table');
+                if (stockItems.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No extra stock available.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = stockItems.map((stock, index) => {
+                    return `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td><strong>${stock.partNo}</strong></td>
+                            <td><span style="color:var(--success); font-weight:600;">${stock.qty}</span></td>
+                            <td>
+                                <button class="action-btn" style="background:var(--dark); color:#fff;" onclick="window.editStock('${stock.id}')">Edit</button>
+                                <button class="action-btn btn-delete" style="margin-left:4px;" onclick="window.deleteStock('${stock.id}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // --- STOCK ACTIONS ---
+            window.editStock = function(id) {
+                const stock = stockItems.find(s => s.id === id);
+                if(!stock) return;
+                document.getElementById('edit-stock-id').value = stock.id;
+                document.getElementById('edit-stock-partno').value = stock.partNo;
+                document.getElementById('edit-stock-qty').value = stock.qty;
+                document.getElementById('edit-stock-modal').style.display = 'flex';
+            }
+
+            document.getElementById('edit-stock-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('edit-stock-id').value;
+                const newQty = parseInt(document.getElementById('edit-stock-qty').value) || 0;
+                const newPartNo = document.getElementById('edit-stock-partno').value;
+
+                await supabase.from('stock_items').update({ part_no: newPartNo, qty: newQty }).eq('id', id);
+                await fetchDatabaseData();
+                document.getElementById('edit-stock-modal').style.display = 'none';
+            });
+
+            window.deleteStock = async function(id) {
+                if(!confirm("Delete this stock record?")) return;
+                await supabase.from('stock_items').delete().eq('id', id);
+                await fetchDatabaseData();
+            }
+
+
+            // --- ADD PO TO DATABASE ---
+            document.getElementById('btn-open-add-po').addEventListener('click', () => {
+                document.getElementById('new-po-date').valueAsDate = new Date();
+                document.getElementById('add-po-modal').style.display = 'flex';
+            });
+
+            document.getElementById('btn-cancel-po').addEventListener('click', () => {
+                document.getElementById('add-po-modal').style.display = 'none';
+                document.getElementById('add-po-form').reset();
+            });
+
+            document.getElementById('add-po-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btnSubmit = e.target.querySelector('button[type="submit"]');
+                btnSubmit.textContent = 'Saving...'; btnSubmit.disabled = true;
+                
+                const newPO = {
+                    po_date: document.getElementById('new-po-date').value, po_number: document.getElementById('new-po-number').value,
+                    customer_name: document.getElementById('new-po-customer').value, order_desc: document.getElementById('new-po-desc').value,
+                    total_amount: document.getElementById('new-po-amount').value, due_date: document.getElementById('new-po-duedate').value, remark: document.getElementById('new-po-remark').value
+                };
+
+                await supabase.from('purchase_orders').insert([newPO]);
+                await fetchDatabaseData();
+                document.getElementById('add-po-modal').style.display = 'none';
+                document.getElementById('add-po-form').reset();
+                
+                btnSubmit.textContent = 'Save PO'; btnSubmit.disabled = false;
+            });
+
+            // --- EDIT PO LOGIC ---
+            window.editPO = function(poNumber) {
+                const po = purchaseOrders.find(p => p.poNumber === poNumber);
+                if (!po) return;
+                document.getElementById('edit-po-id').value = po.id;
+                document.getElementById('edit-po-date').value = po.poDate;
+                document.getElementById('edit-po-number').value = po.poNumber;
+                document.getElementById('edit-po-customer').value = po.customerName;
+                document.getElementById('edit-po-desc').value = po.orderDesc;
+                document.getElementById('edit-po-amount').value = po.totalAmount;
+                document.getElementById('edit-po-duedate').value = po.dueDate || '';
+                document.getElementById('edit-po-remark').value = po.remark || '';
+                document.getElementById('edit-po-modal').style.display = 'flex';
+            };
+
+            document.getElementById('edit-po-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('edit-po-id').value;
+                const updatedPO = {
+                    po_date: document.getElementById('edit-po-date').value, po_number: document.getElementById('edit-po-number').value,
+                    customer_name: document.getElementById('edit-po-customer').value, order_desc: document.getElementById('edit-po-desc').value,
+                    total_amount: document.getElementById('edit-po-amount').value, due_date: document.getElementById('edit-po-duedate').value, remark: document.getElementById('edit-po-remark').value
+                };
+                await supabase.from('purchase_orders').update(updatedPO).eq('id', id);
+                await fetchDatabaseData();
+                document.getElementById('edit-po-modal').style.display = 'none';
+            });
+
+            // --- SAVE DETAILS BUTTON (Saves Items inside PO) ---
+            document.getElementById('btn-save-po-edits').addEventListener('click', async function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '🔄 Saving...'; this.disabled = true;
+
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                for (let item of itemsInThisPO) {
+                    const payload = {
+                        po_number: item.poNumber, item_no: item.itemNo, part_no: item.partNo,
+                        description: item.description, qty_ordered: item.qtyOrdered,
+                        in_stock: item.inStock, borrowed: item.borrowed, remark: item.remark,
+                        is_delivered: item.isDelivered
+                    };
+                    if (item.id) { await supabase.from('order_items').update(payload).eq('id', item.id); } 
+                    else {
+                        const { data } = await supabase.from('order_items').insert([payload]).select();
+                        if (data && data.length > 0) item.id = data[0].id;
+                    }
+                }
+                this.innerHTML = '✓ Saved Successfully!';
+                setTimeout(() => { this.innerHTML = originalText; this.disabled = false; }, 2000);
+            });
+
+
+            // --- NAVIGATION WITH BROWSER HISTORY API ---
+            window.viewPO = function(poNumber) {
+                currentPO = poNumber;
+                history.pushState({ view: 'detail', po: poNumber }, '', `?po=${poNumber}`);
+                document.getElementById('detail-title').innerText = `PO Details: ${poNumber}`;
+                document.getElementById('order-list-view').style.display = 'none';
+                document.getElementById('order-detail-view').style.display = 'block';
+                renderOrders();
+            };
+
+            document.getElementById('btn-back-to-po-list').addEventListener('click', () => { history.back(); });
+
+            window.addEventListener('popstate', (event) => {
+                if (event.state && event.state.view === 'detail') {
+                    currentPO = event.state.po;
+                    document.getElementById('detail-title').innerText = `PO Details: ${currentPO}`;
+                    document.getElementById('order-list-view').style.display = 'none';
+                    document.getElementById('order-detail-view').style.display = 'block';
+                    renderOrders();
+                } else {
+                    currentPO = null;
+                    document.getElementById('order-detail-view').style.display = 'none';
+                    document.getElementById('order-list-view').style.display = 'block';
+                    renderPOList();
+                    renderStockItems();
+                }
+            });
+
+
+            // --- ITEMS TABLE LOGIC & AUTO-SAVE BORROW/RETURN ---
+            function getStockStatus(qtyOrdered, inStock) {
+                if (inStock >= qtyOrdered) return { status: 'Ready', class: 'ready' };
+                return { status: 'Pending', class: 'pending' };
+            }
+
+            window.borrowStock = async function(indexInView) {
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const order = itemsInThisPO[indexInView];
+                if (order.inStock <= 0) { alert('No physical stock available to borrow!'); return; }
+                const qty = parseInt(prompt(`Available stock: ${order.inStock}\nHow many units to borrow?`, '1'));
+                if (isNaN(qty) || qty <= 0) return;
+                if (qty > order.inStock) { alert('Cannot borrow more than available physical stock!'); return; }
+                
+                order.inStock -= qty; order.borrowed += qty;
+                if (order.id) { await supabase.from('order_items').update({ in_stock: order.inStock, borrowed: order.borrowed }).eq('id', order.id); }
+                renderOrders();
+            };
+
+            window.returnStock = async function(indexInView) {
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const order = itemsInThisPO[indexInView];
+                if (order.borrowed <= 0) { alert('No borrowed stock to return!'); return; }
+                const qty = parseInt(prompt(`Currently borrowed out: ${order.borrowed}\nHow many units returning?`, order.borrowed));
+                if (isNaN(qty) || qty <= 0) return;
+                if (qty > order.borrowed) { alert('Cannot return more than borrowed!'); return; }
+                
+                order.borrowed -= qty; order.inStock += qty;
+                if (order.id) { await supabase.from('order_items').update({ in_stock: order.inStock, borrowed: order.borrowed }).eq('id', order.id); }
+                renderOrders();
+            };
+            
+            // Deliver Action
+            window.deliverItem = async function(indexInView) {
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const order = itemsInThisPO[indexInView];
+                if (order.isDelivered) return;
+                
+                if (!confirm("Mark this item as Delivered?")) return;
+                
+                order.isDelivered = true;
+                if (order.id) { 
+                    await supabase.from('order_items').update({ is_delivered: true }).eq('id', order.id); 
+                }
+                renderOrders();
+            };
+
+            // ADD ITEM Modal Logic
+            document.getElementById('btn-open-add-item').addEventListener('click', () => {
+                document.getElementById('add-item-form').reset();
+                document.getElementById('add-item-modal').style.display = 'flex';
+            });
+
+            document.getElementById('add-item-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                let nextItemNo = itemsInThisPO.length > 0 ? Math.max(...itemsInThisPO.map(i => i.itemNo)) + 1 : 1;
+
+                const newItem = {
+                    poNumber: currentPO, itemNo: nextItemNo,
+                    partNo: document.getElementById('add-item-partno').value, 
+                    description: document.getElementById('add-item-desc').value,
+                    qtyOrdered: parseInt(document.getElementById('add-item-qty').value) || 0,
+                    inStock: 0, borrowed: 0, remark: '', isDelivered: false
+                };
+                allItems.push(newItem);
+                document.getElementById('add-item-modal').style.display = 'none';
+                renderOrders(); 
+            });
+
+            // EDIT ITEM Modal Logic
+            window.editItem = function(indexInView) {
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const order = itemsInThisPO[indexInView];
+                document.getElementById('edit-item-index').value = indexInView;
+                document.getElementById('edit-item-partno').value = order.partNo;
+                document.getElementById('edit-item-desc').value = order.description;
+                document.getElementById('edit-item-qty').value = order.qtyOrdered;
+                document.getElementById('edit-item-stock').value = order.inStock;
+                document.getElementById('edit-item-borrowed').value = order.borrowed;
+                document.getElementById('edit-item-remark').value = order.remark;
+                document.getElementById('edit-item-modal').style.display = 'flex';
+            };
+
+            document.getElementById('edit-item-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const indexInView = document.getElementById('edit-item-index').value;
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const order = itemsInThisPO[indexInView];
+
+                let newStock = parseInt(document.getElementById('edit-item-stock').value) || 0;
+                let newQtyOrdered = parseInt(document.getElementById('edit-item-qty').value) || 0;
+
+                // Restriction Rule
+                if(newStock > newQtyOrdered) {
+                    alert("Error: In Stock quantity cannot exceed the Qty Ordered.");
+                    return;
+                }
+
+                order.partNo = document.getElementById('edit-item-partno').value;
+                order.description = document.getElementById('edit-item-desc').value;
+                order.qtyOrdered = newQtyOrdered;
+                order.inStock = newStock;
+                order.borrowed = parseInt(document.getElementById('edit-item-borrowed').value) || 0;
+                order.remark = document.getElementById('edit-item-remark').value;
+
+                document.getElementById('edit-item-modal').style.display = 'none';
+                renderOrders();
+            });
+
+            // DELETE ITEM Logic
+            window.deleteItem = async function(indexInView) {
+                if (!confirm("Are you sure you want to delete this item? This action cannot be undone.")) return;
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                const orderToDelete = itemsInThisPO[indexInView];
+
+                const globalIndex = allItems.findIndex(item => item === orderToDelete);
+                if (globalIndex > -1) allItems.splice(globalIndex, 1);
+                if (orderToDelete.id) { await supabase.from('order_items').delete().eq('id', orderToDelete.id); }
+                renderOrders();
+            };
+
+            function renderOrders() {
+                const tbody = document.getElementById('order-table');
+                const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+
+                if (itemsInThisPO.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><p>No items found. Add manually or Scan PO.</p></td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = itemsInThisPO.map((o, i) => {
+                    const s = getStockStatus(o.qtyOrdered, o.inStock);
+                    
+                    const deliveryText = o.isDelivered ? 'Delivered' : 'Pending';
+                    const deliveryClass = o.isDelivered ? 'delivered' : 'pending';
+                    
+                    return `<tr>
+                        <td>${o.itemNo}</td>
+                        <td><strong>${o.partNo}</strong></td>
+                        <td>${o.description}</td>
+                        <td>${o.qtyOrdered}</td>
+                        <td>${o.inStock}</td>
+                        <td>${o.borrowed > 0 ? `<span style="color:#3b82f6;">${o.borrowed}</span>` : '-'}</td>
+                        <td><span class="status ${s.class}">${s.status}</span></td>
+                        <td><span class="status ${deliveryClass}">${deliveryText}</span></td>
+                        <td>
+                            <input type="text" class="inline-input" placeholder="Add remark..." value="${o.remark || ''}" onchange="window.updateItemRemark(${i}, this.value)">
+                        </td>
+                        <td>
+                            <button class="action-btn btn-borrow" onclick="window.borrowStock(${i})">Borrow</button>
+                            <button class="action-btn btn-return" onclick="window.returnStock(${i})" style="margin-left:4px;">Return</button>
+                            <button class="action-btn btn-deliver" onclick="window.deliverItem(${i})" style="margin-left:4px;" ${o.isDelivered ? 'disabled' : ''}>Deliver</button>
+                            <button class="action-btn btn-view" style="margin-left:4px; background:var(--dark); color:#fff;" onclick="window.editItem(${i})">Edit</button>
+                            <button class="action-btn btn-delete" style="margin-left:4px;" onclick="window.deleteItem(${i})">Delete</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+
+            // --- AI SCANNER: PURCHASE ORDER ---
+            document.getElementById('upload-zone-area').addEventListener('click', () => { document.getElementById('file-input').click(); });
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                selectedFilePO = e.target.files[0];
+                if (selectedFilePO) document.getElementById('upload-text').textContent = 'Selected: ' + selectedFilePO.name;
+            });
+
+            document.getElementById('scan-btn').addEventListener('click', async () => {
+                if (!selectedFilePO) { alert('Please upload a PO image first'); return; }
+                const btn = document.getElementById('scan-btn');
+                btn.textContent = '🔄 Scanning PO...'; btn.disabled = true;
+
+                try {
+                    const base64 = await fileToBase64(selectedFilePO);
+                    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `You are an expert inventory professional analyzing a Purchase Order. Extract all ordered line items. Return STRICTLY a JSON array using these keys: "partNo", "description", "qtyOrdered". Do not include Markdown. Example: [{"partNo":"ABC-01","description":"Motor Component","qtyOrdered":5}]` }, { inlineData: { mimeType: selectedFilePO.type, data: base64.split(',')[1] } }] }] })
+                    });
+                    const data = await response.json();
+                    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const match = text.match(/\[[\s\S]*\]/);
+                    
+                    if (match) {
+                        const items = JSON.parse(match[0]);
+                        const itemsInThisPO = allItems.filter(item => item.poNumber === currentPO);
+                        let startingItemNo = itemsInThisPO.length > 0 ? Math.max(...itemsInThisPO.map(i => i.itemNo)) + 1 : 1;
+
+                        items.forEach((item) => {
+                            allItems.push({
+                                poNumber: currentPO, itemNo: startingItemNo++,
+                                partNo: item.partNo || item.sku || 'N/A', description: item.description || 'Unknown Item',
+                                qtyOrdered: parseInt(item.qtyOrdered || 0), inStock: 0, borrowed: 0, remark: 'AI PO Scanned', isDelivered: false
+                            });
+                        });
+                        alert(`Added ${items.length} items! Remember to click 'Save Changes' at the top right.`);
+                    } else { alert('Could not find item data in the image.'); }
+                } catch (err) { alert('Scan error: ' + err.message); }
+
+                btn.textContent = '🔍 Scan PO & Extract Ordered Items'; btn.disabled = false;
+                selectedFilePO = null; document.getElementById('upload-text').textContent = 'Click to upload PO/Quotation image';
+                renderOrders();
+            });
+
+            // --- AI SCANNER: DELIVERY ORDER (WITH EXTRA STOCK ROUTING) ---
+            document.getElementById('do-upload-zone').addEventListener('click', () => { document.getElementById('do-file-input').click(); });
+            document.getElementById('do-file-input').addEventListener('change', (e) => {
+                selectedFileDO = e.target.files[0];
+                if (selectedFileDO) document.getElementById('do-upload-text').textContent = 'Selected: ' + selectedFileDO.name;
+            });
+
+            document.getElementById('do-scan-btn').addEventListener('click', async () => {
+                if (!selectedFileDO) { alert('Please upload a Delivery Order (DO) image first'); return; }
+                const btn = document.getElementById('do-scan-btn');
+                btn.textContent = '🔄 Analyzing DO & Updating DB...'; btn.disabled = true;
+
+                try {
+                    const base64 = await fileToBase64(selectedFileDO);
+                    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `You are an expert inventory receiving manager analyzing a Delivery Order (DO). Extract all delivered items. Return STRICTLY a JSON array using these keys: "partNo", "qtyDelivered". Do not include Markdown. Example: [{"partNo":"BRG-6205","qtyDelivered":50}]` }, { inlineData: { mimeType: selectedFileDO.type, data: base64.split(',')[1] } }] }] })
+                    });
+                    const data = await response.json();
+                    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const match = text.match(/\[[\s\S]*\]/);
+                    
+                    if (match) {
+                        const deliveredItems = JSON.parse(match[0]);
+                        let totalUpdated = 0;
+                        let extraStockCount = 0;
+
+                        // Distribute to POs first
+                        for(let delivered of deliveredItems) {
+                            let qtyToDistribute = parseInt(delivered.qtyDelivered || 0);
+                            let targetPartNo = delivered.partNo;
+
+                            if (qtyToDistribute > 0 && targetPartNo) {
+                                // 1. Fill pending POs up to their max Qty Ordered
+                                let matchingItems = allItems.filter(i => i.partNo === targetPartNo);
+                                for (let poItem of matchingItems) {
+                                    if (qtyToDistribute <= 0) break;
+                                    let neededQty = poItem.qtyOrdered - poItem.inStock;
+                                    if (neededQty > 0) {
+                                        let qtyToAdd = Math.min(neededQty, qtyToDistribute);
+                                        poItem.inStock += qtyToAdd; 
+                                        qtyToDistribute -= qtyToAdd; 
+                                        totalUpdated += qtyToAdd;
+                                        
+                                        // Auto-save this exact item to database
+                                        if (poItem.id) {
+                                            await supabase.from('order_items').update({ in_stock: poItem.inStock }).eq('id', poItem.id);
+                                        }
+                                    }
+                                }
+                                
+                                // 2. If leftover quantity exists, push to Extra Stock
+                                if (qtyToDistribute > 0) {
+                                    let existingStock = stockItems.find(s => s.partNo === targetPartNo);
+                                    if(existingStock) {
+                                        existingStock.qty += qtyToDistribute;
+                                        await supabase.from('stock_items').update({ qty: existingStock.qty }).eq('id', existingStock.id);
+                                    } else {
+                                        const newStock = { part_no: targetPartNo, qty: qtyToDistribute };
+                                        const { data: insertedStock } = await supabase.from('stock_items').insert([newStock]).select();
+                                        if(insertedStock && insertedStock.length > 0) {
+                                            stockItems.push({ id: insertedStock[0].id, partNo: insertedStock[0].part_no, qty: insertedStock[0].qty });
+                                        }
+                                    }
+                                    extraStockCount += qtyToDistribute;
+                                }
+                            }
+                        }
+
+                        alert(`DO Scan Complete!\n- Added ${totalUpdated} units to Active POs.\n- Pushed ${extraStockCount} surplus units to Extra Stock.`);
+                    } else { alert('Could not parse delivered items from the image.'); }
+                } catch (err) { alert('DO Scan error: ' + err.message); }
+
+                btn.textContent = '🔍 Scan DO & Auto-Fill Stock'; btn.disabled = false;
+                selectedFileDO = null; document.getElementById('do-upload-text').textContent = 'Click to upload supplier DO. This auto-updates active POs. Surplus goes to Extra Stock.';
+                
+                // Refresh both lists
+                renderPOList(); 
+                renderStockItems();
+            });
+
+            function fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader(); reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject; reader.readAsDataURL(file);
+                });
+            }
+
+            // --- LOGOUT LOGIC ---
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                await supabase.auth.signOut();
+                window.location.href = '../index.html';
+            });
+        });
+    </script>
+</body>
+</html>
