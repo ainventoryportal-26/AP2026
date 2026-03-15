@@ -3,14 +3,7 @@
   "short_name": "AInventory",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff", 
+  "background_color": "#ffffff",
   "theme_color": "#ffffff",
-  "icons": [
-    {
-      "src": "ap_logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any" 
-    }
-  ]
+  "description": "ITAKE Group Inventory Management System"
 }
